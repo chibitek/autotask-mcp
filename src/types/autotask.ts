@@ -156,6 +156,12 @@ export interface AutotaskInvoice {
   totalAmount?: number;
   paidAmount?: number;
   isVoided?: boolean;
+  /**
+   * Composed by getInvoiceDetails() — populated via the
+   * Invoices GET endpoint using `includeItemsAndExpenses=true`
+   * (or a fallback billing-items query by invoiceID).
+   */
+  lineItems?: AutotaskBillingItem[];
   [key: string]: any;
 }
 

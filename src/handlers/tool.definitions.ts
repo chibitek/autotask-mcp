@@ -971,6 +971,20 @@ export const TOOL_DEFINITIONS: McpTool[] = [
       required: []
     }
   },
+  {
+    name: 'autotask_get_invoice_details',
+    description: 'Get a single Autotask invoice with its nested line items (billing items posted to the invoice). Use for finance workflows that need to see exactly what an invoice contains.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        invoiceId: {
+          type: 'number',
+          description: 'The invoice ID to fetch'
+        }
+      },
+      required: ['invoiceId']
+    }
+  },
 
   // Task tools
   {
@@ -1126,6 +1140,18 @@ export const TOOL_DEFINITIONS: McpTool[] = [
         invoiceId: {
           type: 'number',
           description: 'Filter by invoice ID'
+        },
+        isInvoiced: {
+          type: 'boolean',
+          description: 'If true, only return billing items that have been attached to an invoice (invoiceID is set). If false, only return items that have not yet been invoiced. Answers "what has and hasn\'t been invoiced yet".'
+        },
+        dateFrom: {
+          type: 'string',
+          description: 'Filter billing items with itemDate on or after this date (ISO format, e.g. 2026-01-01)'
+        },
+        dateTo: {
+          type: 'string',
+          description: 'Filter billing items with itemDate on or before this date (ISO format)'
         },
         postedAfter: {
           type: 'string',

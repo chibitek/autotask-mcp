@@ -295,6 +295,11 @@ export class AutotaskToolHandler {
       ['autotask_search_invoices', async (a) => {
         const r = await s.searchInvoices(a); return { result: r, message: `Found ${r.length} invoices` };
       }],
+      ['autotask_get_invoice_details', async (a) => {
+        const r = await s.getInvoiceDetails(a.invoiceId);
+        const count = r?.lineItems?.length ?? 0;
+        return { result: r, message: r ? `Invoice ${a.invoiceId} retrieved with ${count} line items` : `Invoice ${a.invoiceId} not found` };
+      }],
 
       // Tasks
       ['autotask_search_tasks', async (a) => {
@@ -401,6 +406,9 @@ export class AutotaskToolHandler {
           projectId: a.projectId,
           contractId: a.contractId,
           invoiceId: a.invoiceId,
+          isInvoiced: a.isInvoiced,
+          dateFrom: a.dateFrom,
+          dateTo: a.dateTo,
           postedAfter: a.postedAfter,
           postedBefore: a.postedBefore,
           page: a.page,

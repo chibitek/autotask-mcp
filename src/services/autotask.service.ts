@@ -842,13 +842,88 @@ export class AutotaskService {
 
   async searchInvoices(options: AutotaskQueryOptions = {}): Promise<AutotaskInvoice[]> {
     const client = await this.ensureClient();
-    
+
     try {
       this.logger.debug('Searching invoices with options:', options);
       const result = await client.invoices.list(options as any);
       return (result.data as AutotaskInvoice[]) || [];
     } catch (error) {
       this.logger.error('Failed to search invoices:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get an invoice with its nested line items.
+   *
+   * The Autotask REST API supports returning invoice items and expenses
+   * from the Invoices GET endpoint via the `includeItemsAndExpenses=true`
+   * query parameter. If the response does not include line items (older
+   * API surface or SDK quirks), fall back to querying BillingItems by
+   * invoiceID to compose the nested response.
+   */
+  async getInvoiceDetails(id: number): Promise<AutotaskInvoice | null> {
+    const client = await this.ensureClient();
+
+    try {
+      this.logger.debug(`Getting invoice details with ID: ${id}`);
+
+      // Use direct axios call to include items & expenses
+      const axios = (client as any).axios;
+      let invoice: AutotaskInvoice | null = null;
+      let lineItems: AutotaskBillingItem[] = [];
+
+      try {
+        const response = await axios.get(`/Invoices/${id}`, {
+          params: { includeItemsAndExpenses: true }
+        });
+        const data = response?.data?.item ?? response?.data?.items?.[0] ?? response?.data;
+        if (data) {
+          invoice = data as AutotaskInvoice;
+          // Autotask may return line items under a few different keys
+          const candidates = [
+            (data as any).items,
+            (data as any).invoiceItems,
+            (data as any).lineItems,
+            (data as any).billingItems,
+          ];
+          for (const c of candidates) {
+            if (Array.isArray(c) && c.length > 0) {
+              lineItems = c as AutotaskBillingItem[];
+              break;
+            }
+          }
+        }
+      } catch (axiosErr) {
+        this.logger.debug(
+          `Direct Invoices GET with includeItemsAndExpenses failed, falling back to SDK get: ${(axiosErr as Error).message}`
+        );
+        const result = await client.invoices.get(id);
+        invoice = (result.data as AutotaskInvoice) || null;
+      }
+
+      if (!invoice) {
+        return null;
+      }
+
+      // If line items were not embedded, fall back to BillingItems query
+      if (lineItems.length === 0) {
+        try {
+          const biResult = await client.billingItems.list({
+            filter: [{ op: 'eq', field: 'invoiceID', value: id }],
+            pageSize: 500,
+          } as any);
+          lineItems = (biResult.data as AutotaskBillingItem[]) || [];
+        } catch (biErr) {
+          this.logger.warn(
+            `Failed to fetch line items for invoice ${id}: ${(biErr as Error).message}`
+          );
+        }
+      }
+
+      return { ...invoice, lineItems };
+    } catch (error) {
+      this.logger.error(`Failed to get invoice details ${id}:`, error);
       throw error;
     }
   }
@@ -1317,6 +1392,31 @@ export class AutotaskService {
           op: 'eq',
           field: 'invoiceID',
           value: (options as any).invoiceId
+        });
+      }
+
+      // Filter by "is invoiced" (invoiceID is/not null).
+      // Autotask REST uses `exist` / `notExist` operators for null checks.
+      if ((options as any).isInvoiced !== undefined) {
+        filters.push({
+          op: (options as any).isInvoiced ? 'exist' : 'notExist',
+          field: 'invoiceID'
+        });
+      }
+
+      // Date range filters on itemDate (the billing-item event date)
+      if ((options as any).dateFrom) {
+        filters.push({
+          op: 'gte',
+          field: 'itemDate',
+          value: (options as any).dateFrom
+        });
+      }
+      if ((options as any).dateTo) {
+        filters.push({
+          op: 'lte',
+          field: 'itemDate',
+          value: (options as any).dateTo
         });
       }
 

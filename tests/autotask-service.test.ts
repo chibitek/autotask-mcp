@@ -85,6 +85,7 @@ describe('AutotaskService', () => {
     
     expect(typeof service.getInvoice).toBe('function');
     expect(typeof service.searchInvoices).toBe('function');
+    expect(typeof service.getInvoiceDetails).toBe('function');
     
     expect(typeof service.getTask).toBe('function');
     expect(typeof service.searchTasks).toBe('function');
@@ -155,4 +156,108 @@ describe('AutotaskService', () => {
       await expect(service.searchDepartments()).rejects.toThrow('Departments API not directly available');
     });
   });
-}); 
+
+  describe('Invoice details and billing item filters', () => {
+    function makeServiceWithMockClient(mockClient: any) {
+      const service = new AutotaskService(mockConfig, mockLogger);
+      (service as any).client = mockClient;
+      return service;
+    }
+
+    test('getInvoiceDetails composes line items via includeItemsAndExpenses', async () => {
+      const invoice = { id: 42, invoiceNumber: 'INV-42', totalAmount: 100 };
+      const embeddedItems = [
+        { id: 1, invoiceID: 42, itemName: 'Labor', extendedPrice: 80 },
+        { id: 2, invoiceID: 42, itemName: 'Parts', extendedPrice: 20 },
+      ];
+      const axiosGet = jest.fn().mockResolvedValue({
+        data: { item: { ...invoice, items: embeddedItems } },
+      });
+      const mockClient = {
+        axios: { get: axiosGet },
+        invoices: { get: jest.fn() },
+        billingItems: { list: jest.fn() },
+      };
+      const service = makeServiceWithMockClient(mockClient);
+
+      const result = await service.getInvoiceDetails(42);
+      expect(axiosGet).toHaveBeenCalledWith('/Invoices/42', {
+        params: { includeItemsAndExpenses: true },
+      });
+      expect(result?.id).toBe(42);
+      expect(result?.lineItems).toHaveLength(2);
+      expect(result?.lineItems?.[0].itemName).toBe('Labor');
+      // Should not have needed a fallback billingItems query
+      expect(mockClient.billingItems.list).not.toHaveBeenCalled();
+    });
+
+    test('getInvoiceDetails falls back to BillingItems query when items not embedded', async () => {
+      const invoice = { id: 7, invoiceNumber: 'INV-7' };
+      const axiosGet = jest.fn().mockResolvedValue({ data: { item: invoice } });
+      const biList = jest.fn().mockResolvedValue({
+        data: [{ id: 99, invoiceID: 7, itemName: 'Fallback' }],
+      });
+      const mockClient = {
+        axios: { get: axiosGet },
+        invoices: { get: jest.fn() },
+        billingItems: { list: biList },
+      };
+      const service = makeServiceWithMockClient(mockClient);
+
+      const result = await service.getInvoiceDetails(7);
+      expect(biList).toHaveBeenCalledTimes(1);
+      const biArgs = biList.mock.calls[0][0];
+      expect(biArgs.filter).toContainEqual({
+        op: 'eq',
+        field: 'invoiceID',
+        value: 7,
+      });
+      expect(result?.lineItems).toHaveLength(1);
+      expect(result?.lineItems?.[0].itemName).toBe('Fallback');
+    });
+
+    test('searchBillingItems translates isInvoiced and date range into filters', async () => {
+      const listMock = jest.fn().mockResolvedValue({ data: [] });
+      const mockClient = {
+        billingItems: { list: listMock },
+      };
+      const service = makeServiceWithMockClient(mockClient);
+
+      await service.searchBillingItems({
+        isInvoiced: false,
+        ticketId: 555,
+        projectId: 777,
+        dateFrom: '2026-01-01',
+        dateTo: '2026-01-31',
+      } as any);
+
+      expect(listMock).toHaveBeenCalledTimes(1);
+      const query = listMock.mock.calls[0][0];
+      const filters = query.filter;
+
+      expect(filters).toContainEqual({ op: 'notExist', field: 'invoiceID' });
+      expect(filters).toContainEqual({ op: 'eq', field: 'ticketID', value: 555 });
+      expect(filters).toContainEqual({ op: 'eq', field: 'projectID', value: 777 });
+      expect(filters).toContainEqual({
+        op: 'gte',
+        field: 'itemDate',
+        value: '2026-01-01',
+      });
+      expect(filters).toContainEqual({
+        op: 'lte',
+        field: 'itemDate',
+        value: '2026-01-31',
+      });
+    });
+
+    test('searchBillingItems emits exist filter when isInvoiced=true', async () => {
+      const listMock = jest.fn().mockResolvedValue({ data: [] });
+      const mockClient = { billingItems: { list: listMock } };
+      const service = makeServiceWithMockClient(mockClient);
+
+      await service.searchBillingItems({ isInvoiced: true } as any);
+      const filters = listMock.mock.calls[0][0].filter;
+      expect(filters).toContainEqual({ op: 'exist', field: 'invoiceID' });
+    });
+  });
+});
