@@ -2,6 +2,7 @@
 // Wraps the autotask-node client with our specific types and error handling
 
 import { AutotaskClient } from 'autotask-node';
+import { resolveAutotaskApiUrl } from '../utils/config';
 import {
   AutotaskCompany,
   AutotaskContact,
@@ -66,7 +67,12 @@ export class AutotaskService {
 
       this.logger.info('Initializing Autotask client...');
       
-      // Only include apiUrl if it's defined
+      // Resolve the API URL: either use the explicit override or auto-detect
+      // the tenant's zone from the unauthenticated zoneInformation endpoint.
+      // This keeps onboarding friction low — users no longer need to hunt for
+      // the right regional URL (WW1/WW16/EU1/etc.) before their first run.
+      const resolvedApiUrl = await resolveAutotaskApiUrl(username, apiUrl, this.logger);
+
       const authConfig: any = {
         username,
         secret,
@@ -75,11 +81,8 @@ export class AutotaskService {
         // API calls. Skipping the /Version connection test avoids a 30s timeout
         // on every tool invocation when running stateless/per-request.
         skipConnectionTest: true,
+        apiUrl: resolvedApiUrl,
       };
-
-      if (apiUrl) {
-        authConfig.apiUrl = apiUrl;
-      }
 
       // Disable gzip compression — autotask-node sets Content-Encoding: gzip
       // on requests but doesn't actually compress the body, causing the Autotask

@@ -154,4 +154,169 @@ export function mergeWithMcpConfig(envConfig: EnvironmentConfig, mcpArgs?: Recor
   return serverConfig;
 }
 
- 
+/**
+ * In-memory cache of resolved zone URLs keyed by username (lowercased).
+ * Populated by resolveAutotaskApiUrl on successful zone info lookup.
+ * Never persisted to disk — lifetime == process lifetime.
+ */
+const zoneUrlCache = new Map<string, string>();
+
+/**
+ * Reset the zone URL cache. Intended for tests only.
+ */
+export function _resetZoneUrlCache(): void {
+  zoneUrlCache.clear();
+}
+
+/**
+ * Minimal logger shape accepted by resolveAutotaskApiUrl so we don't
+ * have a hard dep on the Logger class (keeps this pre-auth bootstrap simple).
+ */
+export interface ZoneResolverLogger {
+  info: (msg: string, ...args: any[]) => void;
+  error: (msg: string, ...args: any[]) => void;
+}
+
+const ZONE_INFO_URL = 'https://webservices.autotask.net/atservicesrest/v1.0/zoneInformation';
+const ZONE_DOCS_URL =
+  'https://ww1.autotask.net/help/Content/AdminSetup/2ExtensionsIntegrations/APIs/REST/General_Topics/REST_Zones.htm';
+
+/**
+ * Resolve the Autotask API base URL.
+ *
+ * Precedence:
+ *   1. If `explicitApiUrl` is set, return it (manual override always wins).
+ *   2. Otherwise, if `username` is set, look up the tenant's zone via the
+ *      unauthenticated zoneInformation endpoint, cache it, and return it.
+ *   3. Otherwise, throw — caller must set AUTOTASK_API_URL manually.
+ *
+ * Intentionally uses native `fetch` (not the autotask-node SDK) because
+ * this is a pre-auth bootstrap: the SDK needs a URL to construct itself.
+ */
+export async function resolveAutotaskApiUrl(
+  username: string | undefined,
+  explicitApiUrl: string | undefined,
+  logger: ZoneResolverLogger,
+  fetchImpl: typeof fetch = fetch
+): Promise<string> {
+  if (explicitApiUrl) {
+    return explicitApiUrl;
+  }
+
+  if (!username) {
+    throw new Error(
+      'Cannot auto-detect Autotask zone: AUTOTASK_USERNAME is not set. ' +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+  }
+
+  const cacheKey = username.toLowerCase();
+  const cached = zoneUrlCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const lookupUrl = `${ZONE_INFO_URL}?user=${encodeURIComponent(username)}`;
+  let response: Response;
+  try {
+    response = await fetchImpl(lookupUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' }
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(
+      `Failed to contact Autotask zone info endpoint: ${message}. ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+    throw new Error(
+      `Autotask zone auto-detection failed (network error: ${message}). ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+  }
+
+  if (!response.ok) {
+    logger.error(
+      `Autotask zone info endpoint returned HTTP ${response.status} for user ${username}. ` +
+        `Verify the username (API user email) is correct, or set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+    throw new Error(
+      `Autotask zone auto-detection failed (HTTP ${response.status}). ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+  }
+
+  let body: any;
+  try {
+    body = await response.json();
+  } catch (err) {
+    logger.error(
+      `Autotask zone info response was not valid JSON. ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+    throw new Error(
+      `Autotask zone auto-detection failed (malformed response). ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+  }
+
+  const url: unknown = body?.url;
+  if (typeof url !== 'string' || url.length === 0) {
+    logger.error(
+      `Autotask zone info response missing "url" field. ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+    throw new Error(
+      `Autotask zone auto-detection failed (missing url in response). ` +
+        `Set AUTOTASK_API_URL manually — see ${ZONE_DOCS_URL}`
+    );
+  }
+
+  const zoneName = typeof body?.zoneName === 'string' ? body.zoneName : 'unknown';
+  logger.info(`Auto-detected Autotask zone "${zoneName}" for user ${username}: ${url}`);
+
+  zoneUrlCache.set(cacheKey, url);
+  return url;
+}
+
+/**
+ * Get configuration help text
+ */
+export function getConfigHelp(): string {
+  return `
+Autotask MCP Server Configuration:
+
+=== Local Mode (default) ===
+Required Environment Variables:
+  AUTOTASK_USERNAME         - Autotask API username (email)
+  AUTOTASK_SECRET          - Autotask API secret key
+  AUTOTASK_INTEGRATION_CODE - Autotask integration code
+
+=== Gateway Mode (hosted deployment) ===
+When AUTH_MODE=gateway, credentials are injected by the MCP Gateway:
+  X_API_KEY                - Autotask API username (from X-API-Key header)
+  X_API_SECRET             - Autotask API secret (from X-API-Secret header)
+  X_INTEGRATION_CODE       - Autotask integration code (from X-Integration-Code header)
+
+=== Common Options ===
+  AUTOTASK_API_URL         - Autotask API base URL (auto-detected if not provided)
+  AUTH_MODE                - Authentication mode: env (default), gateway
+  MCP_SERVER_NAME          - Server name (default: autotask-mcp)
+  MCP_SERVER_VERSION       - Server version (default: 1.0.0)
+  MCP_TRANSPORT            - Transport type: stdio, http (default: stdio)
+  MCP_HTTP_PORT            - HTTP port when using http transport (default: 8080)
+  MCP_HTTP_HOST            - HTTP host when using http transport (default: 0.0.0.0)
+  LOG_LEVEL                - Logging level: error, warn, info, debug (default: info)
+  LOG_FORMAT               - Log format: simple, json (default: simple)
+
+Example (Local Mode):
+  AUTOTASK_USERNAME=api-user@example.com
+  AUTOTASK_SECRET=your-secret-key
+  AUTOTASK_INTEGRATION_CODE=your-integration-code
+
+Example (Gateway Mode):
+  AUTH_MODE=gateway
+  MCP_TRANSPORT=http
+  # Credentials injected by gateway via X-API-Key, X-API-Secret, X-Integration-Code headers
+`.trim();
+}

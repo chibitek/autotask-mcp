@@ -205,7 +205,10 @@ AUTOTASK_SECRET=your-secret-key
 AUTOTASK_INTEGRATION_CODE=your-integration-code
 
 # Optional configuration
-AUTOTASK_API_URL=https://webservices.autotask.net/atservices/1.6/atws.asmx
+# AUTOTASK_API_URL is auto-detected from AUTOTASK_USERNAME via Autotask's
+# unauthenticated zoneInformation endpoint on first connect. Only set this
+# explicitly to override auto-detection (e.g. for an on-prem proxy).
+# AUTOTASK_API_URL=https://webservices2.autotask.net/atservicesrest/
 MCP_SERVER_NAME=autotask-mcp
 
 # Authentication mode
