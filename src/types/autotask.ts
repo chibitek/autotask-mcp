@@ -55,6 +55,15 @@ export interface AutotaskTicket {
   lastActivityDate?: string;
   estimatedHours?: number;
   hoursToBeScheduled?: number;
+  queueID?: number;
+  ticketCategory?: number;
+  source?: number;
+  billingCodeID?: number;
+  serviceLevelAgreementID?: number;
+  projectID?: number;
+  ticketAdditionalContacts?: number[];
+  resolution?: string;
+  userDefinedFields?: AutotaskUserDefinedField[];
   [key: string]: any;
 }
 

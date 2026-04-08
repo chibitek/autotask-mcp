@@ -313,9 +313,173 @@ export const TOOL_DEFINITIONS: McpTool[] = [
         contactID: {
           type: 'number',
           description: 'Contact ID for the ticket'
+        },
+        queueID: {
+          type: 'number',
+          description: 'Queue ID to route the ticket to. Use autotask_list_queues to discover valid IDs.'
+        },
+        ticketCategory: {
+          type: 'number',
+          description: 'Ticket category ID (picklist). Use autotask_get_field_info with entity "Tickets" and field "ticketCategory" to discover valid values.'
+        },
+        ticketType: {
+          type: 'number',
+          description: 'Ticket type ID (picklist, e.g. Service Request, Incident, Problem, Change).'
+        },
+        issueType: {
+          type: 'number',
+          description: 'First-level issue type ID (picklist). Required context for subIssueType. Use autotask_get_field_info (entity "Tickets", field "issueType") to discover valid values.'
+        },
+        subIssueType: {
+          type: 'number',
+          description: 'Sub issue type ID (picklist). Must be valid for the selected issueType. Use autotask_get_field_info (entity "Tickets", field "subIssueType") to discover valid values.'
+        },
+        source: {
+          type: 'number',
+          description: 'Ticket source ID (picklist, e.g. Phone, Email, Portal). Use autotask_get_field_info (entity "Tickets", field "source") to discover valid values.'
+        },
+        billingCodeID: {
+          type: 'number',
+          description: 'Work type / billing code ID used for billing this ticket.'
+        },
+        serviceLevelAgreementID: {
+          type: 'number',
+          description: 'Service Level Agreement (SLA) ID to apply to the ticket.'
+        },
+        estimatedHours: {
+          type: 'number',
+          description: 'Estimated hours of work for the ticket.'
+        },
+        projectID: {
+          type: 'number',
+          description: 'Project ID to associate the ticket with. Links the ticket to an existing project.'
+        },
+        ticketAdditionalContacts: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Additional contact IDs to associate with the ticket (beyond the primary contactID).'
+        },
+        resolution: {
+          type: 'string',
+          description: 'Ticket-level resolution text. This is the Resolution field on the ticket itself, NOT a ticket note.'
+        },
+        userDefinedFields: {
+          type: 'array',
+          description: 'User-defined (custom) fields for the ticket, as an array of { name, value } objects matching the Autotask REST API shape.',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'UDF name' },
+              value: { type: 'string', description: 'UDF value (stringified)' }
+            },
+            required: ['name', 'value']
+          }
         }
       },
       required: ['companyID', 'title', 'description']
+    }
+  },
+  {
+    name: 'autotask_update_ticket',
+    description: 'Update fields on an existing Autotask ticket. Only supply the fields you want to change.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: {
+          type: 'number',
+          description: 'ID of the ticket to update'
+        },
+        title: {
+          type: 'string',
+          description: 'Ticket title'
+        },
+        description: {
+          type: 'string',
+          description: 'Ticket description'
+        },
+        status: {
+          type: 'number',
+          description: 'Ticket status ID'
+        },
+        priority: {
+          type: 'number',
+          description: 'Ticket priority ID'
+        },
+        assignedResourceID: {
+          type: 'number',
+          description: 'Assigned resource ID'
+        },
+        contactID: {
+          type: 'number',
+          description: 'Contact ID for the ticket'
+        },
+        companyID: {
+          type: 'number',
+          description: 'Company ID for the ticket'
+        },
+        queueID: {
+          type: 'number',
+          description: 'Queue ID to route the ticket to. Use autotask_list_queues to discover valid IDs.'
+        },
+        ticketCategory: {
+          type: 'number',
+          description: 'Ticket category ID (picklist). Use autotask_get_field_info (entity "Tickets", field "ticketCategory") to discover valid values.'
+        },
+        ticketType: {
+          type: 'number',
+          description: 'Ticket type ID (picklist).'
+        },
+        issueType: {
+          type: 'number',
+          description: 'First-level issue type ID (picklist). Use autotask_get_field_info (entity "Tickets", field "issueType") to discover valid values.'
+        },
+        subIssueType: {
+          type: 'number',
+          description: 'Sub issue type ID (picklist). Must be valid for the selected issueType. Use autotask_get_field_info (entity "Tickets", field "subIssueType") to discover valid values.'
+        },
+        source: {
+          type: 'number',
+          description: 'Ticket source ID (picklist). Use autotask_get_field_info (entity "Tickets", field "source") to discover valid values.'
+        },
+        billingCodeID: {
+          type: 'number',
+          description: 'Work type / billing code ID used for billing this ticket.'
+        },
+        serviceLevelAgreementID: {
+          type: 'number',
+          description: 'Service Level Agreement (SLA) ID to apply to the ticket.'
+        },
+        estimatedHours: {
+          type: 'number',
+          description: 'Estimated hours of work for the ticket.'
+        },
+        projectID: {
+          type: 'number',
+          description: 'Project ID to associate the ticket with. Can be used to retroactively link an existing ticket to a project.'
+        },
+        ticketAdditionalContacts: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Additional contact IDs to associate with the ticket (beyond the primary contactID).'
+        },
+        resolution: {
+          type: 'string',
+          description: 'Ticket-level resolution text. This is the Resolution field on the ticket itself, NOT a ticket note.'
+        },
+        userDefinedFields: {
+          type: 'array',
+          description: 'User-defined (custom) fields for the ticket, as an array of { name, value } objects matching the Autotask REST API shape.',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'UDF name' },
+              value: { type: 'string', description: 'UDF value (stringified)' }
+            },
+            required: ['name', 'value']
+          }
+        }
+      },
+      required: ['ticketId']
     }
   },
 

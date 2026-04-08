@@ -9,6 +9,41 @@ import { formatCompactResponse, detectEntityType, COMPACT_SEARCH_TOOLS } from '.
 import { MappingService } from '../utils/mapping.service.js';
 import { TOOL_DEFINITIONS, TOOL_CATEGORIES } from './tool.definitions.js';
 
+// Fields accepted by autotask_create_ticket / autotask_update_ticket.
+// Keep this list in sync with the tool definitions in tool.definitions.ts.
+const TICKET_WRITABLE_FIELDS = [
+  'companyID',
+  'title',
+  'description',
+  'status',
+  'priority',
+  'assignedResourceID',
+  'contactID',
+  'queueID',
+  'ticketCategory',
+  'ticketType',
+  'issueType',
+  'subIssueType',
+  'source',
+  'billingCodeID',
+  'serviceLevelAgreementID',
+  'estimatedHours',
+  'projectID',
+  'ticketAdditionalContacts',
+  'resolution',
+  'userDefinedFields'
+] as const;
+
+function buildTicketPayload(args: Record<string, any>): Record<string, any> {
+  const payload: Record<string, any> = {};
+  for (const field of TICKET_WRITABLE_FIELDS) {
+    if (args[field] !== undefined) {
+      payload[field] = args[field];
+    }
+  }
+  return payload;
+}
+
 export interface McpTool {
   name: string;
   description: string;
@@ -763,7 +798,15 @@ export class AutotaskToolHandler {
         const r = await s.getTicket(a.ticketID, a.fullDetails); return { result: r, message: 'Ticket details retrieved successfully' };
       }],
       ['autotask_create_ticket', async (a) => {
-        const id = await s.createTicket(a); return { result: id, message: `Successfully created ticket with ID: ${id}` };
+        const payload = buildTicketPayload(a);
+        const id = await s.createTicket(payload);
+        return { result: id, message: `Successfully created ticket with ID: ${id}` };
+      }],
+      ['autotask_update_ticket', async (a) => {
+        const { ticketId, ...rest } = a;
+        const payload = buildTicketPayload(rest);
+        await s.updateTicket(ticketId, payload);
+        return { result: ticketId, message: `Successfully updated ticket ${ticketId}` };
       }],
       ['autotask_update_ticket', async (a) => {
         const { ticketId, ...updates } = a;
