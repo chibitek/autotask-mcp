@@ -18,6 +18,7 @@ import {
   AutotaskProjectNote,
   AutotaskCompanyNote,
   AutotaskTicketAttachment,
+  AutotaskTicketChecklistItem,
   AutotaskExpenseReport,
   AutotaskExpenseItem,
   AutotaskQuote,
@@ -1051,6 +1052,104 @@ export class AutotaskService {
   }
   async createCompanyNote(companyId: number, note: Partial<AutotaskCompanyNote>): Promise<number> {
     return this.createNote('accountId', companyId, note);
+  }
+
+  // =====================================================
+  // Ticket Checklist Items (sub-resource of Tickets)
+  // =====================================================
+  // The Autotask REST API exposes checklist items only via the
+  // /Tickets/{ticketId}/ChecklistItems sub-resource. The flat endpoint
+  // does not exist, so we talk to the underlying axios instance directly
+  // (same pattern as createNote — see PR #33).
+
+  private extractApiErrors(error: any): string[] | undefined {
+    return (
+      error?.originalError?.response?.data?.errors ||
+      error?.response?.data?.errors
+    );
+  }
+
+  async searchTicketChecklistItems(ticketId: number): Promise<AutotaskTicketChecklistItem[]> {
+    const client = await this.ensureClient();
+    try {
+      this.logger.debug(`Listing checklist items for ticket ${ticketId}`);
+      const axiosInstance = (client as any).axios;
+      // Autotask requires a query filter even for sub-resource lists.
+      const query = encodeURIComponent(JSON.stringify({ filter: [{ field: 'id', op: 'gte', value: 0 }] }));
+      const response = await axiosInstance.get(`Tickets/${ticketId}/ChecklistItems/query?search=${query}`);
+      const items = (response.data?.items as AutotaskTicketChecklistItem[]) || [];
+      this.logger.info(`Retrieved ${items.length} checklist items for ticket ${ticketId}`);
+      return items;
+    } catch (error) {
+      this.logger.error(`Failed to list checklist items for ticket ${ticketId}:`, error);
+      const apiErrors = this.extractApiErrors(error);
+      if (apiErrors && apiErrors.length > 0) {
+        throw new Error(`Autotask API error: ${apiErrors.join('; ')}`);
+      }
+      throw error;
+    }
+  }
+
+  async createTicketChecklistItem(
+    ticketId: number,
+    data: Partial<AutotaskTicketChecklistItem>
+  ): Promise<number> {
+    const client = await this.ensureClient();
+    try {
+      this.logger.debug(`Creating checklist item on ticket ${ticketId}:`, data);
+      const body = { ...data, ticketID: ticketId };
+      const axiosInstance = (client as any).axios;
+      const response = await axiosInstance.post(`Tickets/${ticketId}/ChecklistItems`, body);
+      const itemId = response.data?.itemId ?? response.data?.id;
+      this.logger.info(`Checklist item created with ID ${itemId} on ticket ${ticketId}`);
+      return itemId;
+    } catch (error) {
+      this.logger.error(`Failed to create checklist item on ticket ${ticketId}:`, error);
+      const apiErrors = this.extractApiErrors(error);
+      if (apiErrors && apiErrors.length > 0) {
+        throw new Error(`Autotask API error: ${apiErrors.join('; ')}`);
+      }
+      throw error;
+    }
+  }
+
+  async updateTicketChecklistItem(
+    ticketId: number,
+    itemId: number,
+    data: Partial<AutotaskTicketChecklistItem>
+  ): Promise<void> {
+    const client = await this.ensureClient();
+    try {
+      this.logger.debug(`Updating checklist item ${itemId} on ticket ${ticketId}:`, data);
+      const body = { ...data, id: itemId, ticketID: ticketId };
+      const axiosInstance = (client as any).axios;
+      await axiosInstance.patch(`Tickets/${ticketId}/ChecklistItems`, body);
+      this.logger.info(`Checklist item ${itemId} updated on ticket ${ticketId}`);
+    } catch (error) {
+      this.logger.error(`Failed to update checklist item ${itemId} on ticket ${ticketId}:`, error);
+      const apiErrors = this.extractApiErrors(error);
+      if (apiErrors && apiErrors.length > 0) {
+        throw new Error(`Autotask API error: ${apiErrors.join('; ')}`);
+      }
+      throw error;
+    }
+  }
+
+  async deleteTicketChecklistItem(ticketId: number, itemId: number): Promise<void> {
+    const client = await this.ensureClient();
+    try {
+      this.logger.debug(`Deleting checklist item ${itemId} from ticket ${ticketId}`);
+      const axiosInstance = (client as any).axios;
+      await axiosInstance.delete(`Tickets/${ticketId}/ChecklistItems/${itemId}`);
+      this.logger.info(`Checklist item ${itemId} deleted from ticket ${ticketId}`);
+    } catch (error) {
+      this.logger.error(`Failed to delete checklist item ${itemId} from ticket ${ticketId}:`, error);
+      const apiErrors = this.extractApiErrors(error);
+      if (apiErrors && apiErrors.length > 0) {
+        throw new Error(`Autotask API error: ${apiErrors.join('; ')}`);
+      }
+      throw error;
+    }
   }
 
   // Attachment entities - Using the generic attachments endpoint

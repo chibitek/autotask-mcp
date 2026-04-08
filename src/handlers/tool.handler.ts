@@ -315,6 +315,32 @@ export class AutotaskToolHandler {
         const id = await s.createTicketNote(a.ticketId, { title: a.title, description: a.description, noteType: a.noteType, publish: a.publish });
         return { result: id, message: `Successfully created ticket note with ID: ${id}` };
       }],
+      // Ticket Checklist Items
+      ['autotask_search_ticket_checklist_items', async (a) => {
+        const r = await s.searchTicketChecklistItems(a.ticketId);
+        return { result: r, message: `Found ${r.length} checklist items` };
+      }],
+      ['autotask_create_ticket_checklist_item', async (a) => {
+        const id = await s.createTicketChecklistItem(a.ticketId, {
+          itemName: a.itemName,
+          position: a.position,
+          isCompleted: a.isCompleted
+        });
+        return { result: id, message: `Successfully created ticket checklist item with ID: ${id}` };
+      }],
+      ['autotask_update_ticket_checklist_item', async (a) => {
+        await s.updateTicketChecklistItem(a.ticketId, a.itemId, {
+          itemName: a.itemName,
+          isCompleted: a.isCompleted,
+          position: a.position
+        });
+        return { result: a.itemId, message: `Successfully updated ticket checklist item ${a.itemId}` };
+      }],
+      ['autotask_delete_ticket_checklist_item', async (a) => {
+        await s.deleteTicketChecklistItem(a.ticketId, a.itemId);
+        return { result: a.itemId, message: `Successfully deleted ticket checklist item ${a.itemId}` };
+      }],
+
       ['autotask_get_project_note', async (a) => {
         const r = await s.getProjectNote(a.projectId, a.noteId); return { result: r, message: 'Project note retrieved successfully' };
       }],

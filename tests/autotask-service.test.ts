@@ -115,6 +115,21 @@ describe('AutotaskService', () => {
       await expect(service.createCompanyNote(123, { title: 'Test', description: 'Test note' })).rejects.toThrow();
     });
 
+    test('should expose ticket checklist item CRUD methods', async () => {
+      const service = new AutotaskService(mockConfig, mockLogger);
+
+      expect(typeof service.searchTicketChecklistItems).toBe('function');
+      expect(typeof service.createTicketChecklistItem).toBe('function');
+      expect(typeof service.updateTicketChecklistItem).toBe('function');
+      expect(typeof service.deleteTicketChecklistItem).toBe('function');
+
+      // With the mocked client failing to initialize, every call should reject.
+      await expect(service.searchTicketChecklistItems(123)).rejects.toThrow();
+      await expect(service.createTicketChecklistItem(123, { itemName: 'Step 1' })).rejects.toThrow();
+      await expect(service.updateTicketChecklistItem(123, 456, { isCompleted: true })).rejects.toThrow();
+      await expect(service.deleteTicketChecklistItem(123, 456)).rejects.toThrow();
+    });
+
     test('should handle attachment methods with proper error messages', async () => {
       const service = new AutotaskService(mockConfig, mockLogger);
       

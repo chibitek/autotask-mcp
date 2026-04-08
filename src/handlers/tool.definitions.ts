@@ -549,6 +549,96 @@ export const TOOL_DEFINITIONS: McpTool[] = [
     }
   },
 
+  // Ticket Checklist Items tools (sub-resource of Tickets)
+  {
+    name: 'autotask_search_ticket_checklist_items',
+    description: 'List all checklist items on a ticket, including their completion status. Checklist items are a sub-resource of a ticket and cannot be queried without a ticket ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: {
+          type: 'number',
+          description: 'The ticket ID whose checklist items should be listed'
+        }
+      },
+      required: ['ticketId']
+    }
+  },
+  {
+    name: 'autotask_create_ticket_checklist_item',
+    description: 'Add a new checklist item to a ticket.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: {
+          type: 'number',
+          description: 'The ticket ID to add the checklist item to'
+        },
+        itemName: {
+          type: 'string',
+          description: 'The checklist item text'
+        },
+        position: {
+          type: 'number',
+          description: 'Optional ordering position for the item'
+        },
+        isCompleted: {
+          type: 'boolean',
+          description: 'Whether the item starts in the completed state (default: false)'
+        }
+      },
+      required: ['ticketId', 'itemName']
+    }
+  },
+  {
+    name: 'autotask_update_ticket_checklist_item',
+    description: 'Update a checklist item on a ticket — edit text, mark complete/incomplete, or change position.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: {
+          type: 'number',
+          description: 'The parent ticket ID'
+        },
+        itemId: {
+          type: 'number',
+          description: 'The checklist item ID to update'
+        },
+        itemName: {
+          type: 'string',
+          description: 'New text for the checklist item'
+        },
+        isCompleted: {
+          type: 'boolean',
+          description: 'Mark the item complete (true) or incomplete (false)'
+        },
+        position: {
+          type: 'number',
+          description: 'New ordering position for the item'
+        }
+      },
+      required: ['ticketId', 'itemId']
+    }
+  },
+  {
+    name: 'autotask_delete_ticket_checklist_item',
+    description: 'Delete a checklist item from a ticket.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: {
+          type: 'number',
+          description: 'The parent ticket ID'
+        },
+        itemId: {
+          type: 'number',
+          description: 'The checklist item ID to delete'
+        }
+      },
+      required: ['ticketId', 'itemId']
+    }
+  },
+
   // Project Notes tools
   {
     name: 'autotask_get_project_note',

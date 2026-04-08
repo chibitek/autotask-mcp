@@ -186,6 +186,17 @@ export interface AutotaskTicketNote {
   [key: string]: any;
 }
 
+export interface AutotaskTicketChecklistItem {
+  id?: number;
+  ticketID?: number;
+  itemName?: string;
+  isCompleted?: boolean;
+  position?: number;
+  completedByResourceID?: number;
+  completedDateTime?: string;
+  [key: string]: any;
+}
+
 export interface AutotaskProjectNote {
   id?: number;
   projectID?: number;
