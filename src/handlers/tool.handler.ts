@@ -275,6 +275,27 @@ export class AutotaskToolHandler {
       ['autotask_create_project', async (a) => {
         const id = await s.createProject(a); return { result: id, message: `Successfully created project with ID: ${id}` };
       }],
+      ['autotask_update_project', async (a) => {
+        const { projectId, ...rest } = a;
+        const updates: Record<string, any> = {};
+        for (const key of [
+          'projectName',
+          'description',
+          'status',
+          'departmentID',
+          'assignedResourceID',
+          'assignedResourceRoleID',
+          'projectLeadResourceID',
+          'startDateTime',
+          'endDateTime',
+          'estimatedTime',
+          'userDefinedFields'
+        ]) {
+          if (rest[key] !== undefined) updates[key] = rest[key];
+        }
+        await s.updateProject(projectId, updates);
+        return { result: undefined, message: `Successfully updated project ID: ${projectId}` };
+      }],
 
       // Resources
       ['autotask_search_resources', async (a) => {

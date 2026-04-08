@@ -443,6 +443,72 @@ export const TOOL_DEFINITIONS: McpTool[] = [
       required: ['companyID', 'projectName', 'status']
     }
   },
+  {
+    name: 'autotask_update_project',
+    description: 'Update an existing project in Autotask. Only the fields you provide will be updated. Common use case: set status=5 to mark a project Complete.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectId: {
+          type: 'number',
+          description: 'The ID of the project to update'
+        },
+        projectName: {
+          type: 'string',
+          description: 'Project name'
+        },
+        description: {
+          type: 'string',
+          description: 'Project description'
+        },
+        status: {
+          type: 'number',
+          description: 'Project status (1=New, 2=In Progress, 5=Complete). Set to 5 to mark the project complete.'
+        },
+        departmentID: {
+          type: 'number',
+          description: 'Department ID owning the project'
+        },
+        assignedResourceID: {
+          type: 'number',
+          description: 'Primary assigned resource (project manager) ID. Note: Autotask may also require assignedResourceRoleID to be set alongside this field.'
+        },
+        assignedResourceRoleID: {
+          type: 'number',
+          description: 'Role ID for the assigned resource. Required by Autotask when assignedResourceID is provided.'
+        },
+        projectLeadResourceID: {
+          type: 'number',
+          description: 'Project lead resource ID'
+        },
+        startDateTime: {
+          type: 'string',
+          description: 'Project start date/time (ISO 8601)'
+        },
+        endDateTime: {
+          type: 'string',
+          description: 'Project end date/time (ISO 8601)'
+        },
+        estimatedTime: {
+          type: 'number',
+          description: 'Estimated time for the project, in hours'
+        },
+        userDefinedFields: {
+          type: 'array',
+          description: 'User-defined field values to set on the project (Autotask REST-native shape)',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'UDF name' },
+              value: { type: 'string', description: 'UDF value' }
+            },
+            required: ['name', 'value']
+          }
+        }
+      },
+      required: ['projectId']
+    }
+  },
 
   // Resource tools
   {
