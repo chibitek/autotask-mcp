@@ -267,9 +267,12 @@ export class AutotaskMcpServer {
       // Health endpoint - no auth required
       if (url.pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
+        // `mcpTransport` (not `transport`) to avoid confusion with the network
+        // scheme — the value refers to the MCP transport type (stdio vs
+        // Streamable HTTP), not whether the service is served over HTTP/HTTPS.
         res.end(JSON.stringify({
           status: 'ok',
-          transport: 'http',
+          mcpTransport: 'http',
           authMode: isGatewayMode ? 'gateway' : 'env',
           timestamp: new Date().toISOString()
         }));

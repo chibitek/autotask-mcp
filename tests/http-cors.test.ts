@@ -98,7 +98,8 @@ describe('HTTP transport CORS preflight', () => {
   it('does not break /health', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/health`);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { status: string };
+    const body = (await res.json()) as { status: string; mcpTransport: string };
     expect(body.status).toBe('ok');
+    expect(body.mcpTransport).toBe('http');
   });
 });
