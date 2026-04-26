@@ -1006,6 +1006,12 @@ export class AutotaskToolHandler {
         await s.updateContractService(id, rest); return { result: undefined, message: `Successfully updated contract service ID: ${id}` };
       }],
 
+      // Raw REST passthrough (escape hatch)
+      ['autotask_raw_request', async (a) => {
+        const r = await s.rawRequest(a.method, a.path, a.body, a.queryParams);
+        return { result: r, message: `Autotask ${a.method} ${a.path} completed` };
+      }],
+
       // Invoices
       ['autotask_search_invoices', async (a) => {
         const r = await s.searchInvoices(a); return { result: r, message: `Found ${r.length} invoices` };
