@@ -32,6 +32,23 @@ interface QueryResponse<T> {
   pageDetails?: PageDetails;
 }
 
+const RAW_REQUEST_METHODS = ['GET', 'POST', 'PATCH', 'DELETE'] as const;
+
+function assertSafeRelativePath(path: string): void {
+  if (typeof path !== 'string' || path.length === 0) {
+    throw new Error('Autotask rawRequest: path must be a non-empty string');
+  }
+  if (
+    !path.startsWith('/') ||
+    path.startsWith('//') ||
+    path.includes('\\') ||
+    /:\/\//.test(path) ||
+    path.includes('..')
+  ) {
+    throw new Error('Autotask rawRequest: path must be a relative path beginning with "/" (no scheme, host, or traversal)');
+  }
+}
+
 /**
  * Minimal HTTP client for the Autotask REST API.
  *
@@ -124,14 +141,10 @@ export class AutotaskHttpClient {
   }
 
   /**
-   * Generic passthrough for any Autotask REST endpoint.
-   *
-   * Serializes `queryParams` onto the path as `?key=value&...` (URL-encoded)
-   * and reuses the same auth headers, timeout, error handling, and base URL
-   * resolution as every other method on this client.
-   *
-   * Use sparingly — typed helpers (get/query/create/update/delete) are
-   * preferred. This is the escape hatch for endpoints not yet wrapped.
+   * Generic passthrough for any Autotask REST endpoint. The escape hatch is
+   * tool-callable, so auth headers must only ever go to the zone-resolved
+   * host — validation, method allowlist, and a final host assertion enforce
+   * that independently.
    */
   async rawRequest<T = any>(
     method: string,
@@ -139,17 +152,31 @@ export class AutotaskHttpClient {
     body?: any,
     queryParams?: Record<string, string | number | boolean>
   ): Promise<T> {
+    const upperMethod = method.toUpperCase();
+    if (!(RAW_REQUEST_METHODS as readonly string[]).includes(upperMethod)) {
+      throw new Error(`Autotask rawRequest: method must be one of ${RAW_REQUEST_METHODS.join(', ')}`);
+    }
+    assertSafeRelativePath(path);
+
     let finalPath = path;
     if (queryParams && Object.keys(queryParams).length > 0) {
-      const qs = Object.entries(queryParams)
-        .filter(([, v]) => v !== undefined && v !== null)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-        .join('&');
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(queryParams)) {
+        if (v !== undefined && v !== null) params.append(k, String(v));
+      }
+      const qs = params.toString();
       if (qs) {
-        finalPath = `${path}${path.includes('?') ? '&' : '?'}${qs}`;
+        finalPath = `${finalPath}${finalPath.includes('?') ? '&' : '?'}${qs}`;
       }
     }
-    return this.request<T>(method, finalPath, body);
+
+    const base = await this.baseUrl();
+    const absoluteUrl = `${base}${finalPath}`;
+    if (new URL(absoluteUrl).host !== new URL(base).host) {
+      throw new Error('Autotask rawRequest: refusing to send to non-zone host');
+    }
+
+    return this.request<T>(upperMethod, absoluteUrl, body);
   }
 
   /**
