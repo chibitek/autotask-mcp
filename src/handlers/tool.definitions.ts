@@ -421,6 +421,10 @@ export const TOOL_DEFINITIONS: McpTool[] = [
           type: 'number',
           description: 'Filter by company ID'
         },
+        contactID: {
+          type: 'number',
+          description: 'Filter by primary contact ID — returns only tickets where contactID matches'
+        },
         status: {
           type: 'number',
           description: 'Filter by ticket status ID (omit for all open tickets)'

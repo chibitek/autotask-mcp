@@ -295,8 +295,14 @@ export class AutotaskService {
         filters.push({ op: 'eq', field: 'assignedResourceID', value: options.assignedResourceID });
       }
 
-      if (options.companyId !== undefined) {
-        filters.push({ op: 'eq', field: 'companyID', value: options.companyId });
+      const companyId = options.companyID ?? options.companyId;
+      if (companyId !== undefined) {
+        filters.push({ op: 'eq', field: 'companyID', value: companyId });
+      }
+
+      const contactId = options.contactID ?? options.contactId;
+      if (contactId !== undefined) {
+        filters.push({ op: 'eq', field: 'contactID', value: contactId });
       }
 
       if (options.createdAfter) {
