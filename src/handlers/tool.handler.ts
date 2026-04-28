@@ -758,7 +758,10 @@ export class AutotaskToolHandler {
       // Connection
       ['autotask_test_connection', async () => {
         const ok = await s.testConnection();
-        return { result: { success: ok }, message: ok ? 'Successfully connected to Autotask API' : 'Connection failed' };
+        if (!ok) {
+          throw new Error('Connection to Autotask API failed. Verify AUTOTASK_USERNAME, AUTOTASK_SECRET, and AUTOTASK_INTEGRATION_CODE are configured correctly and that the API user has at least read access to Companies.');
+        }
+        return { result: { success: true }, message: 'Successfully connected to Autotask API' };
       }],
 
       // Companies
