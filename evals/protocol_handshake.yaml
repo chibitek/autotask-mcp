@@ -1,0 +1,17 @@
+name: server starts and lists tools over stdio
+server:
+  command: node
+  args: [dist/entry.js]
+  env:
+    AUTOTASK_USERNAME: ""
+    AUTOTASK_SECRET: ""
+    AUTOTASK_INTEGRATION_CODE: ""
+assert:
+  list_tools:
+    expect:
+      contains_tools:
+        - autotask_test_connection
+        - autotask_search_companies
+        - autotask_search_tickets
+        - autotask_create_time_entry
+timeout: 30s
